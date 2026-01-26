@@ -10,6 +10,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -48,6 +49,13 @@ public class CartItemService {
         Item item = itemService.getItemById(itemId);
         CartItem cartItem = getCartItemById(itemId);
         return mapper.mapToItemResponseDto(item, cartItem.getCount());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ItemResponseDto> getAllCartItems() {
+        return cartItemRepository.findAllWithItems().stream()
+                .map(e -> mapper.mapToItemResponseDto(e.getItem(), e.getCount()))
+                .toList();
     }
 
     @Transactional
