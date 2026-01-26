@@ -64,6 +64,7 @@ public class CartItemService {
         switch (action) {
             case PLUS -> handlePlusAction(itemId, optCartItem);
             case MINUS -> handleMinusAction(optCartItem);
+            case DELETE -> handleDeleteAction(optCartItem);
         }
     }
 
@@ -89,6 +90,14 @@ public class CartItemService {
             } else {
                 cartItem.setCount(0);
             }
+            save(cartItem);
+        }
+    }
+
+    private void handleDeleteAction(Optional<CartItem> optCartItem) {
+        if (optCartItem.isPresent()) {
+            CartItem cartItem = optCartItem.get();
+            cartItem.setCount(0);
             save(cartItem);
         }
     }
