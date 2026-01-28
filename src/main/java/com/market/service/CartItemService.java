@@ -2,16 +2,23 @@ package com.market.service;
 
 import com.market.dto.ItemResponseDto;
 import com.market.enumeration.CartAction;
+import com.market.enumeration.SortType;
 import com.market.mapper.ItemMapper;
 import com.market.model.CartItem;
 import com.market.model.Item;
 import com.market.repository.CartItemRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class CartItemService {
@@ -58,6 +65,21 @@ public class CartItemService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public Page<ItemResponseDto> getItems(String search, SortType sortType, int pageNumber, int pageSize) {
+        Pageable pageable = getPageable(sortType, pageNumber, pageSize);
+        Page<Item> page;
+        if (search != null && !search.isBlank()) {
+            page = itemService.findByTitleOrDescription(search, search, pageable);
+        } else {
+            page = itemService.findAll(pageable);
+        }
+        Map<Long, Integer> comparisonMap = cartItemRepository.findAllWithItems().stream()
+                .collect(Collectors.toMap(e -> e.getItem().getId(), CartItem::getCount));
+
+        return page.map(e -> mapper.mapToItemResponseDto(e, comparisonMap.getOrDefault(e.getId(), 0)));
+    }
+
     @Transactional
     public void updateItemCount(Long itemId, CartAction action) {
         Optional<CartItem> optCartItem = getCartItemByItemId(itemId);
@@ -100,5 +122,14 @@ public class CartItemService {
             cartItem.setCount(0);
             save(cartItem);
         }
+    }
+
+    private Pageable getPageable(SortType sortType, int pageNumber, int pageSize) {
+        Sort sort = switch (sortType) {
+            case ALPHA -> Sort.by(Sort.Order.asc("title"));
+            case PRICE -> Sort.by(Sort.Order.asc("price"));
+            default -> Sort.unsorted();
+        };
+        return PageRequest.of(pageNumber, pageSize, sort);
     }
 }
