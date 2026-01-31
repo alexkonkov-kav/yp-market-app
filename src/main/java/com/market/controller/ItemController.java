@@ -61,7 +61,7 @@ public class ItemController {
                                           @RequestParam(value = "pageSize", defaultValue = "5") int pageSize,
                                           @RequestParam("action") CartAction action) {
         cartItemService.updateItemCount(id, action);
-        return String.format("/items?search=%s&sort=%s&pageNumber=%s&pageSize=%s",
+        return String.format("redirect:/items?search=%s&sort=%s&pageNumber=%s&pageSize=%s",
                 search != null ? search : "", sort, pageNumber, pageSize);
     }
 }
