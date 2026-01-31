@@ -30,11 +30,12 @@ public class ItemServiceTest {
     void get_Item_By_Id() {
         Long itemId = 1L;
         Item mockItem = new Item("яблоко", "яблоко красное", "images/apple.jpg", 50);
+        mockItem.setId(itemId);
         when(itemRepository.findById(itemId)).thenReturn(Optional.of(mockItem));
         Item result = itemService.getItemById(itemId);
         assertThat(result).isNotNull();
         assertThat(result.getId()).isEqualTo(itemId);
-        assertThat(result.getTitle()).isEqualTo("Test Item");
+        assertThat(result.getTitle()).isEqualTo("яблоко");
         verify(itemRepository, times(1)).findById(itemId);
     }
 
