@@ -36,7 +36,7 @@ public class ItemController {
     @GetMapping({"/", "/items"})
     public String getItemsPage(@RequestParam(value = "search", required = false) String search,
                                @RequestParam(value = "sort", defaultValue = "NO") SortType sort,
-                               @RequestParam(value = "pageNumber", defaultValue = "1") int pageNumber,
+                               @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
                                @RequestParam(value = "pageSize", defaultValue = "5") int pageSize,
                                Model model) {
         Page<ItemResponseDto> page = cartItemService.getItems(search, sort, pageNumber, pageSize);
@@ -57,11 +57,11 @@ public class ItemController {
     public String updateItemCountFromCart(@RequestParam Long id,
                                           @RequestParam(value = "search", required = false) String search,
                                           @RequestParam(value = "sort", defaultValue = "NO") SortType sort,
-                                          @RequestParam(value = "pageNumber", defaultValue = "1") int pageNumber,
+                                          @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
                                           @RequestParam(value = "pageSize", defaultValue = "5") int pageSize,
                                           @RequestParam("action") CartAction action) {
         cartItemService.updateItemCount(id, action);
-        return String.format("redirect:/items?search=%s&sort=%s&pageNumber=%s&pageSize=%s",
+        return String.format("/items?search=%s&sort=%s&pageNumber=%s&pageSize=%s",
                 search != null ? search : "", sort, pageNumber, pageSize);
     }
 }
