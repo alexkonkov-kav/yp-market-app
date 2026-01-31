@@ -20,6 +20,11 @@ public class CartItem {
     public CartItem() {
     }
 
+    public CartItem(Item item, int count) {
+        this.item = item;
+        this.count = count;
+    }
+
     public Long getId() {
         return id;
     }
