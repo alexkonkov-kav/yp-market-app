@@ -25,6 +25,13 @@ public class Item {
     public Item() {
     }
 
+    public Item(String title, String description, String imgPath, long price) {
+        this.title = title;
+        this.description = description;
+        this.imgPath = imgPath;
+        this.price = price;
+    }
+
     public Long getId() {
         return id;
     }
