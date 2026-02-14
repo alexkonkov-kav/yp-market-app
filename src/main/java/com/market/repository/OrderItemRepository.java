@@ -1,7 +1,7 @@
 package com.market.repository;
 
 import com.market.model.OrderItem;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 
-public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
+public interface OrderItemRepository extends ReactiveCrudRepository<OrderItem, Long> {
 }
