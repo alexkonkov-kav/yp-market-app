@@ -2,11 +2,11 @@ package com.market.service;
 
 import com.market.model.Item;
 import com.market.repository.ItemRepository;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
 public class ItemService {
@@ -18,18 +18,18 @@ public class ItemService {
     }
 
     @Transactional(readOnly = true)
-    public Item getItemById(Long itemId) {
+    public Mono<Item> getItemById(Long itemId) {
         return itemRepository.findById(itemId)
-                .orElseThrow(() -> new EntityNotFoundException("Not found Item with ID: " + itemId));
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Not found Item with ID: " + itemId)));
     }
 
     @Transactional(readOnly = true)
-    public Page<Item> findByTitleOrDescription(String title, String description, Pageable pageable) {
+    public Flux<Item> findByTitleOrDescription(String title, String description, Pageable pageable) {
         return itemRepository.findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(title, description, pageable);
     }
 
     @Transactional(readOnly = true)
-    public Page<Item> findAll(Pageable pageable) {
+    public Flux<Item> findAll(Pageable pageable) {
         return itemRepository.findAll(pageable);
     }
 }
