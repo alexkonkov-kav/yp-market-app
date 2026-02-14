@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
@@ -41,9 +42,9 @@ public class CartItemService {
     }
 
     @Transactional(readOnly = true)
-    public CartItem getCartItemById(Long id) {
+    public Mono<CartItem> getCartItemById(Long id) {
         return cartItemRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Not found CartItem with ID: " + id));
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Not found CartItem with ID: " + id)));
     }
 
     @Transactional(readOnly = true)
@@ -52,10 +53,11 @@ public class CartItemService {
     }
 
     @Transactional(readOnly = true)
-    public ItemResponseDto getItemPage(Long itemId) {
-        Item item = itemService.getItemById(itemId);
-        CartItem cartItem = getCartItemById(itemId);
-        return mapper.mapToItemResponseDto(item, cartItem.getCount());
+    public Mono<ItemResponseDto> getItemPage(Long itemId) {
+        return Mono.zip(
+                itemService.getItemById(itemId),
+                getCartItemById(itemId))
+                .map(e -> mapper.mapToItemResponseDto(e.getT1(), e.getT2().getCount()));
     }
 
     @Transactional(readOnly = true)

@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.reactive.result.view.Rendering;
+import reactor.core.publisher.Mono;
 
 @Controller
 public class ItemController {
@@ -27,10 +29,11 @@ public class ItemController {
     }
 
     @GetMapping("/items/{id}")
-    public String getItemPage(@PathVariable Long id, Model model) {
-        ItemResponseDto dto = cartItemService.getItemPage(id);
-        model.addAttribute("item", dto);
-        return "item";
+    public Mono<Rendering> getItemPage(@PathVariable Long id, Model model) {
+        return Mono.just(
+                Rendering.view("item")
+                        .modelAttribute("users", cartItemService.getItemPage(id))
+                        .build());
     }
 
     @GetMapping({"/", "/items"})
