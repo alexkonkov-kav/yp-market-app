@@ -17,20 +17,23 @@ import java.util.List;
 public class OrderBuyService {
 
     private final CartItemRepository cartItemRepository;
+    private final CartItemService cartItemService;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
 
     public OrderBuyService(CartItemRepository cartItemRepository,
+                           CartItemService cartItemService,
                            OrderRepository orderRepository,
                            OrderItemRepository orderItemRepository) {
         this.cartItemRepository = cartItemRepository;
+        this.cartItemService = cartItemService;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
     }
 
     @Transactional
     public Mono<Long> createOrder() {
-        return cartItemRepository.findAllWithItems()
+        return cartItemService.getAlLCartItemWithItem()
                 .collectList()
                 .flatMap(e -> {
                     if (e.isEmpty()) {
