@@ -32,4 +32,14 @@ public class ItemService {
     public Flux<Item> findAll(Pageable pageable) {
         return itemRepository.findAll(pageable);
     }
+
+    @Transactional(readOnly = true)
+    public Mono<Long> countByTitleOrDescription(String title, String description) {
+        return itemRepository.countByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(title, description);
+    }
+
+    @Transactional(readOnly = true)
+    public Mono<Long> countAll() {
+        return itemRepository.count();
+    }
 }
