@@ -1,29 +1,28 @@
 package com.market.model;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Entity
 @Table(name = "order_item")
 public class OrderItem {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private Long itemId;
 
-    @Column(nullable = false)
     private String title;
 
-    @Column(nullable = false)
     private long price;
 
-    @Column(nullable = false)
     private int count;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
+    @Column("order_id")
+    private Long orderId;
+
+    @Transient
     private Order order;
 
     public OrderItem() {
@@ -34,6 +33,7 @@ public class OrderItem {
         this.title = title;
         this.price = price;
         this.count = count;
+        this.orderId = order.getId();
         this.order = order;
     }
 
@@ -75,6 +75,14 @@ public class OrderItem {
 
     public void setCount(int count) {
         this.count = count;
+    }
+
+    public Long getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(Long orderId) {
+        this.orderId = orderId;
     }
 
     public Order getOrder() {

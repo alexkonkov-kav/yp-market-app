@@ -1,22 +1,23 @@
 package com.market.model;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Entity
 @Table(name = "order_")
 public class Order {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "total_sum", nullable = false)
+    @Column("total_sum")
     private Long totalSum;
 
-    @OneToMany(mappedBy = "order", fetch = FetchType.LAZY)
+    @Transient
     private List<OrderItem> items = new ArrayList<>();
 
     public Order() {
