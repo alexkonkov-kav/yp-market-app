@@ -9,6 +9,7 @@ import com.market.mapper.ItemWithPagingMapper;
 import com.market.model.CartItem;
 import com.market.model.Item;
 import com.market.repository.CartItemRepository;
+import com.market.repository.ItemRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -24,15 +25,18 @@ import java.util.stream.Collectors;
 public class CartItemService {
 
     private final CartItemRepository cartItemRepository;
+    private final ItemRepository itemRepository;
     private final ItemService itemService;
     private final ItemMapper itemMapper;
     private final ItemWithPagingMapper itemWithPagingMapper;
 
     public CartItemService(CartItemRepository cartItemRepository,
+                           ItemRepository itemRepository,
                            ItemService itemService,
                            ItemMapper itemMapper,
                            ItemWithPagingMapper itemWithPagingMapper) {
         this.cartItemRepository = cartItemRepository;
+        this.itemRepository = itemRepository;
         this.itemService = itemService;
         this.itemMapper = itemMapper;
         this.itemWithPagingMapper = itemWithPagingMapper;
@@ -55,6 +59,18 @@ public class CartItemService {
     }
 
     @Transactional(readOnly = true)
+    public Flux<CartItem> getAlLCartItemWithItem() {
+        return cartItemRepository.findAll()
+                .flatMap(ci -> itemRepository.findById(ci.getItemId())
+                        .map(i -> {
+                            ci.setItem(i);
+                            return ci;
+                        })
+                        .defaultIfEmpty(ci)
+                );
+    }
+
+    @Transactional(readOnly = true)
     public Mono<ItemResponseDto> getItemPage(Long itemId) {
         return Mono.zip(
                         itemService.getItemById(itemId),
@@ -64,7 +80,7 @@ public class CartItemService {
 
     @Transactional(readOnly = true)
     public Flux<ItemResponseDto> getAllCartItems() {
-        return cartItemRepository.findAllWithItems()
+        return getAlLCartItemWithItem()
                 .map(e -> itemMapper.mapToItemResponseDto(e.getItem(), e.getCount()));
     }
 
@@ -80,7 +96,7 @@ public class CartItemService {
             items = itemService.findAll(pageable);
             count = itemService.countAll();
         }
-        Mono<Map<Long, Integer>> comparisonMap = cartItemRepository.findAllWithItems()
+        Mono<Map<Long, Integer>> comparisonMap = getAlLCartItemWithItem()
                 .collect(Collectors.toMap(e -> e.getItem().getId(), CartItem::getCount));
 
         return Mono.zip(count, comparisonMap)
