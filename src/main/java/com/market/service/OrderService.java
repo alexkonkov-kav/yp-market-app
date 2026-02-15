@@ -4,11 +4,10 @@ import com.market.dto.OrderResponseDto;
 import com.market.mapper.OrderMapper;
 import com.market.model.Order;
 import com.market.repository.OrderRepository;
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
 public class OrderService {
@@ -23,21 +22,20 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public Order getOrderById(Long id) {
+    public Mono<Order> getOrderById(Long id) {
         return orderRepository.findByIdlWithItems(id)
-                .orElseThrow(() -> new EntityNotFoundException("Not found Order with ID: " + id));
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Not found Order with ID: " + id)));
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponseDto> getAllOrders() {
-        return orderRepository.findAllWithItems().stream()
-                .map(orderMapper::mapToOrderResponseDto)
-                .toList();
+    public Flux<OrderResponseDto> getAllOrders() {
+        return orderRepository.findAllWithItems()
+                .map(orderMapper::mapToOrderResponseDto);
     }
 
     @Transactional(readOnly = true)
-    public OrderResponseDto getOrderResponseById(Long id) {
-        Order order = getOrderById(id);
-        return orderMapper.mapToOrderResponseDto(order);
+    public Mono<OrderResponseDto> getOrderResponseById(Long id) {
+        return getOrderById(id)
+                .map(orderMapper::mapToOrderResponseDto);
     }
 }
