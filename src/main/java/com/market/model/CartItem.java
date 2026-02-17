@@ -25,6 +25,7 @@ public class CartItem {
     }
 
     public CartItem(Item item, int count) {
+        this.itemId = item.getId();
         this.item = item;
         this.count = count;
     }
