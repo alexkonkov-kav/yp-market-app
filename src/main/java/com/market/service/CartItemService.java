@@ -48,12 +48,6 @@ public class CartItemService {
     }
 
     @Transactional(readOnly = true)
-    public Mono<CartItem> getCartItemById(Long id) {
-        return cartItemRepository.findById(id)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Not found CartItem with ID: " + id)));
-    }
-
-    @Transactional(readOnly = true)
     public Mono<CartItem> getCartItemByItemId(Long itemId) {
         return cartItemRepository.findByItemId(itemId);
     }
@@ -74,7 +68,7 @@ public class CartItemService {
     public Mono<ItemResponseDto> getItemPage(Long itemId) {
         return Mono.zip(
                         itemService.getItemById(itemId),
-                        getCartItemById(itemId))
+                        getCartItemByItemId(itemId))
                 .map(e -> itemMapper.mapToItemResponseDto(e.getT1(), e.getT2().getCount()));
     }
 

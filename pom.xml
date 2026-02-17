@@ -55,12 +55,11 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.7</version>
         </dependency>
         <dependency>
-            <groupId>io.r2dbc</groupId>
+            <groupId>org.postgresql</groupId>
             <artifactId>r2dbc-postgresql</artifactId>
-            <version>0.8.13.RELEASE</version>
+            <version>1.0.7.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>org.liquibase</groupId>

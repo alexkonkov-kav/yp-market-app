@@ -29,7 +29,7 @@ public class ItemController {
     public Mono<Rendering> getItemPage(@PathVariable Long id) {
         return Mono.just(
                 Rendering.view("item")
-                        .modelAttribute("users", cartItemService.getItemPage(id))
+                        .modelAttribute("item", cartItemService.getItemPage(id))
                         .build());
     }
 

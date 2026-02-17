@@ -2,13 +2,13 @@ package com.market.repository;
 
 import com.market.model.Item;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public interface ItemRepository extends ReactiveCrudRepository<Item, Long> {
+public interface ItemRepository extends R2dbcRepository<Item, Long> {
 
-    Flux<Item> findAll(Pageable pageable);
+    Flux<Item> findAllBy(Pageable pageable);
 
     Flux<Item> findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(String title, String description, Pageable pageable);
 

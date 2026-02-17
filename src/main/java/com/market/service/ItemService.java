@@ -30,7 +30,7 @@ public class ItemService {
 
     @Transactional(readOnly = true)
     public Flux<Item> findAll(Pageable pageable) {
-        return itemRepository.findAll(pageable);
+        return itemRepository.findAllBy(pageable);
     }
 
     @Transactional(readOnly = true)
