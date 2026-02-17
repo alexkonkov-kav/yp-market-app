@@ -2,6 +2,7 @@ package com.market.repository;
 
 import com.market.model.CartItem;
 import com.market.model.Item;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.r2dbc.DataR2dbcTest;
@@ -20,6 +21,12 @@ public class CartItemRepositoryTest {
 
     @Autowired
     private CartItemRepository cartItemRepository;
+
+    @BeforeEach
+    void cleanUp() {
+        cartItemRepository.deleteAll().block();
+        itemRepository.deleteAll().block();
+    }
 
     @Test
     public void found_By_Item_Id() {
