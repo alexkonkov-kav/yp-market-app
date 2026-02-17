@@ -31,13 +31,13 @@ public class CartItemRepositoryTest {
     @Test
     public void found_By_Item_Id() {
         Item item = new Item("яблоко", "яблоко красное", "images/apple.jpg", 50);
-        Mono<CartItem> saveCartItem = itemRepository.save(item)
+        Mono<CartItem> findCartItem = itemRepository.save(item)
                 .flatMap(saveItem -> {
                     CartItem cartItem = new CartItem(saveItem, 2);
                     return cartItemRepository.save(cartItem);
-                });
-
-        StepVerifier.create(saveCartItem)
+                })
+                .flatMap(cartItem -> cartItemRepository.findById(cartItem.getItemId()));
+        StepVerifier.create(findCartItem)
                 .assertNext(foundCartItem -> {
                     assertThat(foundCartItem.getItemId()).isNotNull();
                     assertThat(foundCartItem.getCount()).isEqualTo(2);
