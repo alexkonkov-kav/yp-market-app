@@ -9,7 +9,6 @@ import com.market.mapper.ItemWithPagingMapper;
 import com.market.model.CartItem;
 import com.market.model.Item;
 import com.market.repository.CartItemRepository;
-import com.market.repository.ItemRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -25,18 +24,15 @@ import java.util.stream.Collectors;
 public class CartItemService {
 
     private final CartItemRepository cartItemRepository;
-    private final ItemRepository itemRepository;
     private final ItemService itemService;
     private final ItemMapper itemMapper;
     private final ItemWithPagingMapper itemWithPagingMapper;
 
     public CartItemService(CartItemRepository cartItemRepository,
-                           ItemRepository itemRepository,
                            ItemService itemService,
                            ItemMapper itemMapper,
                            ItemWithPagingMapper itemWithPagingMapper) {
         this.cartItemRepository = cartItemRepository;
-        this.itemRepository = itemRepository;
         this.itemService = itemService;
         this.itemMapper = itemMapper;
         this.itemWithPagingMapper = itemWithPagingMapper;
@@ -49,13 +45,14 @@ public class CartItemService {
 
     @Transactional(readOnly = true)
     public Mono<CartItem> getCartItemByItemId(Long itemId) {
-        return cartItemRepository.findByItemId(itemId);
+        return cartItemRepository.findByItemId(itemId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Not found Item with ID: " + itemId)));
     }
 
     @Transactional(readOnly = true)
     public Flux<CartItem> getAlLCartItemWithItem() {
         return cartItemRepository.findAll()
-                .flatMap(ci -> itemRepository.findById(ci.getItemId())
+                .flatMap(ci -> itemService.getItemById(ci.getItemId())
                         .map(i -> {
                             ci.setItem(i);
                             return ci;
@@ -106,7 +103,7 @@ public class CartItemService {
 
     @Transactional
     public Mono<Void> updateItemCount(Long itemId, CartAction action) {
-        Mono<CartItem> optCartItem = getCartItemByItemId(itemId);
+        Mono<CartItem> optCartItem = cartItemRepository.findByItemId(itemId);
         return switch (action) {
             case PLUS -> handlePlusAction(itemId, optCartItem);
             case MINUS -> handleMinusAction(optCartItem);
@@ -119,13 +116,13 @@ public class CartItemService {
                     e.setCount(e.getCount() + 1);
                     return save(e);
                 })
-                .switchIfEmpty(
+                .switchIfEmpty(Mono.defer(() ->
                         itemService.getItemById(itemId).flatMap(e -> {
                             CartItem cartItem = new CartItem();
                             cartItem.setItem(e);
                             cartItem.setCount(1);
                             return save(cartItem);
-                        }))
+                        })))
                 .then();
     }
 
