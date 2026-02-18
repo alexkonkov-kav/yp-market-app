@@ -66,7 +66,7 @@ public class ItemController {
         return cartItemService.updateItemCount(id, action)
                 .then(Mono.just(Rendering
                         .redirectTo(
-                                String.format("redirect:/items?search=%s&sort=%s&pageNumber=%s&pageSize=%s",
+                                String.format("/items?search=%s&sort=%s&pageNumber=%s&pageSize=%s",
                                         search != null ? search : "", sort, pageNumber, pageSize))
                         .build()));
     }
