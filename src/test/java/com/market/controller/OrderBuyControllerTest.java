@@ -3,34 +3,34 @@ package com.market.controller;
 import com.market.service.OrderBuyService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Mono;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(OrderBuyController.class)
+@WebFluxTest(OrderBuyController.class)
 @ActiveProfiles("test")
 public class OrderBuyControllerTest {
 
     @Autowired
-    private MockMvc mockMvc;
+    private WebTestClient webTestClient;
 
     @MockitoBean
     private OrderBuyService orderBuyService;
 
     @Test
-    void buy_Order() throws Exception {
+    void buy_Order() {
         Long orderId = 1L;
-        when(orderBuyService.createOrder()).thenReturn(orderId);
-        mockMvc.perform(post("/buy"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/orders/" + orderId + "?newOrder=true"));
+        when(orderBuyService.createOrder()).thenReturn(Mono.just(orderId));
+        webTestClient.post()
+                .uri("/buy")
+                .exchange()
+                .expectStatus().isSeeOther()
+                .expectHeader().valueEquals("Location", "/orders/" + orderId + "?newOrder=true");
         verify(orderBuyService).createOrder();
     }
 }

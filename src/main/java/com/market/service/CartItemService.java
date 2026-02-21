@@ -1,23 +1,23 @@
 package com.market.service;
 
 import com.market.dto.ItemResponseDto;
+import com.market.dto.ItemWithPagingResponseDto;
 import com.market.enumeration.CartAction;
 import com.market.enumeration.SortType;
 import com.market.mapper.ItemMapper;
+import com.market.mapper.ItemWithPagingMapper;
 import com.market.model.CartItem;
 import com.market.model.Item;
 import com.market.repository.CartItemRepository;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,103 +25,127 @@ public class CartItemService {
 
     private final CartItemRepository cartItemRepository;
     private final ItemService itemService;
-    private final ItemMapper mapper;
+    private final ItemMapper itemMapper;
+    private final ItemWithPagingMapper itemWithPagingMapper;
 
     public CartItemService(CartItemRepository cartItemRepository,
                            ItemService itemService,
-                           ItemMapper mapper) {
+                           ItemMapper itemMapper,
+                           ItemWithPagingMapper itemWithPagingMapper) {
         this.cartItemRepository = cartItemRepository;
         this.itemService = itemService;
-        this.mapper = mapper;
+        this.itemMapper = itemMapper;
+        this.itemWithPagingMapper = itemWithPagingMapper;
     }
 
     @Transactional
-    public CartItem save(CartItem cartItem) {
+    public Mono<CartItem> save(CartItem cartItem) {
         return cartItemRepository.save(cartItem);
     }
 
     @Transactional(readOnly = true)
-    public CartItem getCartItemById(Long id) {
-        return cartItemRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Not found CartItem with ID: " + id));
+    public Mono<CartItem> getCartItemByItemId(Long itemId) {
+        return cartItemRepository.findByItemId(itemId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Not found Item with ID: " + itemId)));
     }
 
     @Transactional(readOnly = true)
-    public Optional<CartItem> getCartItemByItemId(Long itemId) {
-        return cartItemRepository.findByItemId(itemId);
+    public Flux<CartItem> getAlLCartItemWithItem() {
+        return cartItemRepository.findAll()
+                .flatMap(ci -> itemService.getItemById(ci.getItemId())
+                        .map(i -> {
+                            ci.setItem(i);
+                            return ci;
+                        })
+                        .defaultIfEmpty(ci)
+                );
     }
 
     @Transactional(readOnly = true)
-    public ItemResponseDto getItemPage(Long itemId) {
-        Item item = itemService.getItemById(itemId);
-        CartItem cartItem = getCartItemById(itemId);
-        return mapper.mapToItemResponseDto(item, cartItem.getCount());
+    public Mono<ItemResponseDto> getItemPage(Long itemId) {
+        return Mono.zip(
+                        itemService.getItemById(itemId),
+                        getCartItemByItemId(itemId))
+                .map(e -> itemMapper.mapToItemResponseDto(e.getT1(), e.getT2().getCount()));
     }
 
     @Transactional(readOnly = true)
-    public List<ItemResponseDto> getAllCartItems() {
-        return cartItemRepository.findAllWithItems().stream()
-                .map(e -> mapper.mapToItemResponseDto(e.getItem(), e.getCount()))
-                .toList();
+    public Flux<ItemResponseDto> getAllCartItems() {
+        return getAlLCartItemWithItem()
+                .map(e -> itemMapper.mapToItemResponseDto(e.getItem(), e.getCount()));
     }
 
     @Transactional(readOnly = true)
-    public Page<ItemResponseDto> getItems(String search, SortType sortType, int pageNumber, int pageSize) {
+    public Flux<ItemWithPagingResponseDto> getItems(String search, SortType sortType, int pageNumber, int pageSize) {
         Pageable pageable = getPageable(sortType, pageNumber, pageSize);
-        Page<Item> page;
+        Flux<Item> items;
+        Mono<Long> count;
         if (search != null && !search.isBlank()) {
-            page = itemService.findByTitleOrDescription(search, search, pageable);
+            items = itemService.findByTitleOrDescription(search, search, pageable);
+            count = itemService.countByTitleOrDescription(search, search);
         } else {
-            page = itemService.findAll(pageable);
+            items = itemService.findAll(pageable);
+            count = itemService.countAll();
         }
-        Map<Long, Integer> comparisonMap = cartItemRepository.findAllWithItems().stream()
+        Mono<Map<Long, Integer>> comparisonMap = getAlLCartItemWithItem()
                 .collect(Collectors.toMap(e -> e.getItem().getId(), CartItem::getCount));
 
-        return page.map(e -> mapper.mapToItemResponseDto(e, comparisonMap.getOrDefault(e.getId(), 0)));
+        return Mono.zip(count, comparisonMap)
+                .flatMapMany(e -> items
+                        .map(item -> itemWithPagingMapper.mapToItemWithPagingResponseDto(item,
+                                e.getT2().getOrDefault(item.getId(), 0),
+                                pageNumber,
+                                pageSize,
+                                e.getT1())
+                        )
+                );
     }
 
     @Transactional
-    public void updateItemCount(Long itemId, CartAction action) {
-        Optional<CartItem> optCartItem = getCartItemByItemId(itemId);
-        switch (action) {
+    public Mono<Void> updateItemCount(Long itemId, CartAction action) {
+        Mono<CartItem> optCartItem = cartItemRepository.findByItemId(itemId);
+        return switch (action) {
             case PLUS -> handlePlusAction(itemId, optCartItem);
             case MINUS -> handleMinusAction(optCartItem);
             case DELETE -> handleDeleteAction(optCartItem);
-        }
+        };
     }
 
-    private void handlePlusAction(Long itemId, Optional<CartItem> optCartItem) {
-        CartItem cartItem;
-        if (optCartItem.isPresent()) {
-            cartItem = optCartItem.get();
-            cartItem.setCount(cartItem.getCount() + 1);
-        } else {
-            Item item = itemService.getItemById(itemId);
-            cartItem = new CartItem();
-            cartItem.setItem(item);
-            cartItem.setCount(1);
-        }
-        save(cartItem);
+    private Mono<Void> handlePlusAction(Long itemId, Mono<CartItem> optCartItem) {
+        return optCartItem.flatMap(e -> {
+                    e.setCount(e.getCount() + 1);
+                    return save(e);
+                })
+                .switchIfEmpty(Mono.defer(() ->
+                        itemService.getItemById(itemId).flatMap(e -> {
+                            CartItem cartItem = new CartItem();
+                            cartItem.setItem(e);
+                            cartItem.setCount(1);
+                            return save(cartItem);
+                        })))
+                .then();
     }
 
-    private void handleMinusAction(Optional<CartItem> optCartItem) {
-        if (optCartItem.isPresent()) {
-            CartItem cartItem = optCartItem.get();
-            if (cartItem.getCount() > 1) {
-                cartItem.setCount(cartItem.getCount() - 1);
-            } else {
-                cartItem.setCount(0);
-            }
-            save(cartItem);
-        }
+    private Mono<Void> handleMinusAction(Mono<CartItem> optCartItem) {
+        return optCartItem
+                .flatMap(e -> {
+                    if (e.getCount() > 1) {
+                        e.setCount(e.getCount() - 1);
+                    } else {
+                        e.setCount(0);
+                    }
+                    return save(e);
+                })
+                .then();
     }
 
-    private void handleDeleteAction(Optional<CartItem> optCartItem) {
-        if (optCartItem.isPresent()) {
-            CartItem cartItem = optCartItem.get();
-            cartItem.setCount(0);
-            save(cartItem);
-        }
+    private Mono<Void> handleDeleteAction(Mono<CartItem> optCartItem) {
+        return optCartItem
+                .flatMap(e -> {
+                    e.setCount(0);
+                    return save(e);
+                })
+                .then();
     }
 
     private Pageable getPageable(SortType sortType, int pageNumber, int pageSize) {

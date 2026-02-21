@@ -1,15 +1,13 @@
 package com.market.controller;
 
-import com.market.dto.OrderResponseDto;
 import com.market.service.OrderService;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import java.util.List;
+import org.springframework.web.reactive.result.view.Rendering;
+import reactor.core.publisher.Mono;
 
 @Controller
 @RequestMapping("/orders")
@@ -22,19 +20,22 @@ public class OrderController {
     }
 
     @GetMapping
-    public String getOrdersPage(Model model) {
-        List<OrderResponseDto> dtos = orderService.getAllOrders();
-        model.addAttribute("orders", dtos);
-        return "orders";
+    public Mono<Rendering> getOrdersPage() {
+        return Mono.just(
+                Rendering.view("orders")
+                        .modelAttribute("orders", orderService.getAllOrders())
+                        .build()
+        );
     }
 
     @GetMapping("/{id}")
-    public String getOrderPage(@PathVariable Long id,
-                               @RequestParam(value = "newOrder", defaultValue = "false") boolean newOrder,
-                               Model model) {
-        OrderResponseDto dto = orderService.getOrderResponseById(id);
-        model.addAttribute("order", dto);
-        model.addAttribute("newOrder", newOrder);
-        return "order";
+    public Mono<Rendering> getOrderPage(@PathVariable Long id,
+                                        @RequestParam(value = "newOrder", defaultValue = "false") boolean newOrder) {
+        return Mono.just(
+                Rendering.view("order")
+                        .modelAttribute("order", orderService.getOrderResponseById(id))
+                        .modelAttribute("newOrder", newOrder)
+                        .build()
+        );
     }
 }

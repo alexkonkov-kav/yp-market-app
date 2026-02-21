@@ -1,16 +1,14 @@
 package com.market.controller;
 
-import com.market.dto.ItemResponseDto;
 import com.market.enumeration.CartAction;
 import com.market.service.CartItemService;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import java.util.List;
+import org.springframework.web.reactive.result.view.Rendering;
+import reactor.core.publisher.Mono;
 
 @Controller
 @RequestMapping("/cart")
@@ -23,20 +21,23 @@ public class CartController {
     }
 
     @GetMapping("/items")
-    public String getCartPage(Model model) {
-        List<ItemResponseDto> dtos = cartItemService.getAllCartItems();
-        long total = dtos.stream()
-                .mapToLong(e -> e.price() * e.count())
-                .sum();
-        model.addAttribute("items", dtos);
-        model.addAttribute("total", total);
-
-        return "cart";
+    public Mono<Rendering> getCartPage() {
+        return cartItemService.getAllCartItems()
+                .collectList()
+                .map(e -> {
+                    long total = e.stream()
+                            .mapToLong(dto -> dto.price() * dto.count())
+                            .sum();
+                    return Rendering.view("cart")
+                            .modelAttribute("items", e)
+                            .modelAttribute("total", total)
+                            .build();
+                });
     }
 
     @PostMapping("/items")
-    public String updateCartItemCount(@RequestParam("id") Long id, @RequestParam("action") CartAction action, Model model) {
-        cartItemService.updateItemCount(id, action);
-        return getCartPage(model);
+    public Mono<Rendering> updateCartItemCount(@RequestParam("id") Long id, @RequestParam("action") CartAction action) {
+        return cartItemService.updateItemCount(id, action)
+                .then(Mono.just(Rendering.redirectTo("/items").build()));
     }
 }

@@ -6,9 +6,9 @@ import com.market.model.OrderItem;
 import com.market.repository.CartItemRepository;
 import com.market.repository.OrderItemRepository;
 import com.market.repository.OrderRepository;
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,40 +17,46 @@ import java.util.List;
 public class OrderBuyService {
 
     private final CartItemRepository cartItemRepository;
+    private final CartItemService cartItemService;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
 
     public OrderBuyService(CartItemRepository cartItemRepository,
+                           CartItemService cartItemService,
                            OrderRepository orderRepository,
                            OrderItemRepository orderItemRepository) {
         this.cartItemRepository = cartItemRepository;
+        this.cartItemService = cartItemService;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
     }
 
     @Transactional
-    public Long createOrder() {
-        List<CartItem> cartItems = cartItemRepository.findAllWithItems();
-        if (cartItems.isEmpty()) {
-            throw new EntityNotFoundException("Cart is empty");
-        }
-        Order saveOrder = createOrder(cartItems);
-        return saveOrder.getId();
+    public Mono<Long> createOrder() {
+        return cartItemService.getAlLCartItemWithItem()
+                .collectList()
+                .flatMap(e -> {
+                    if (e.isEmpty()) {
+                        return Mono.error(new IllegalArgumentException("Cart is empty"));
+                    }
+                    return createOrder(e);
+                }).map(Order::getId);
     }
 
-    private Order createOrder(List<CartItem> cartItems) {
+    private Mono<Order> createOrder(List<CartItem> cartItems) {
         Order order = new Order();
         Long totalSum = cartItems.stream()
                 .mapToLong(e -> e.getItem().getPrice() * e.getCount())
                 .sum();
         order.setTotalSum(totalSum);
-        Order saveOrder = orderRepository.save(order);
-        savedOrderItem(cartItems, saveOrder);
-        deleteCartItem(cartItems);
-        return saveOrder;
+        return orderRepository.save(order)
+                .flatMap(e ->
+                        savedOrderItem(cartItems, e)
+                                .then(deleteCartItem(cartItems))
+                                .thenReturn(e));
     }
 
-    private void savedOrderItem(List<CartItem> cartItems, Order order) {
+    private Mono<Void> savedOrderItem(List<CartItem> cartItems, Order order) {
         List<OrderItem> orderItems = new ArrayList<>();
         for (CartItem cartItem : cartItems) {
             OrderItem orderItem = new OrderItem();
@@ -61,10 +67,10 @@ public class OrderBuyService {
             orderItem.setOrder(order);
             orderItems.add(orderItem);
         }
-        orderItemRepository.saveAll(orderItems);
+        return orderItemRepository.saveAll(orderItems).then();
     }
 
-    private void deleteCartItem(List<CartItem> cartItems) {
-        cartItemRepository.deleteAll(cartItems);
+    private Mono<Void> deleteCartItem(List<CartItem> cartItems) {
+        return cartItemRepository.deleteAll(cartItems);
     }
 }

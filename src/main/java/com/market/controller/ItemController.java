@@ -1,18 +1,17 @@
 package com.market.controller;
 
-import com.market.dto.ItemResponseDto;
-import com.market.dto.PagingResponseDto;
+import com.market.dto.ItemWithPagingResponseDto;
 import com.market.enumeration.CartAction;
 import com.market.enumeration.SortType;
 import com.market.service.CartItemService;
 import com.market.service.DisplayItemService;
-import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.reactive.result.view.Rendering;
+import reactor.core.publisher.Mono;
 
 @Controller
 public class ItemController {
@@ -27,41 +26,48 @@ public class ItemController {
     }
 
     @GetMapping("/items/{id}")
-    public String getItemPage(@PathVariable Long id, Model model) {
-        ItemResponseDto dto = cartItemService.getItemPage(id);
-        model.addAttribute("item", dto);
-        return "item";
+    public Mono<Rendering> getItemPage(@PathVariable Long id) {
+        return Mono.just(
+                Rendering.view("item")
+                        .modelAttribute("item", cartItemService.getItemPage(id))
+                        .build());
     }
 
     @GetMapping({"/", "/items"})
-    public String getItemsPage(@RequestParam(value = "search", required = false) String search,
-                               @RequestParam(value = "sort", defaultValue = "NO") SortType sort,
-                               @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
-                               @RequestParam(value = "pageSize", defaultValue = "5") int pageSize,
-                               Model model) {
-        Page<ItemResponseDto> page = cartItemService.getItems(search, sort, pageNumber, pageSize);
-        model.addAttribute("items", displayItemService.displayItem(page.getContent()));
-        model.addAttribute("search", search);
-        model.addAttribute("sort", sort);
-        model.addAttribute("paging", new PagingResponseDto(pageSize, pageNumber, page.hasPrevious(), page.hasNext()));
-        return "items";
+    public Mono<Rendering> getItemsPage(@RequestParam(value = "search", required = false) String search,
+                                        @RequestParam(value = "sort", defaultValue = "NO") SortType sort,
+                                        @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
+                                        @RequestParam(value = "pageSize", defaultValue = "5") int pageSize) {
+
+        return cartItemService.getItems(search, sort, pageNumber, pageSize)
+                .collectList()
+                .map(e -> Rendering.view("items")
+                        .modelAttribute("items", displayItemService.displayItem(e.stream().map(ItemWithPagingResponseDto::itemResponseDto).toList()))
+                        .modelAttribute("search", search)
+                        .modelAttribute("sort", sort)
+                        .modelAttribute("paging", e.getFirst().pagingResponseDto())
+                        .build()
+                );
     }
 
     @PostMapping("/items/{id}")
-    public String updateItemCount(@PathVariable Long id, @RequestParam CartAction action, Model model) {
-        cartItemService.updateItemCount(id, action);
-        return getItemPage(id, model);
+    public Mono<Rendering> updateItemCount(@PathVariable Long id, @RequestParam CartAction action) {
+        return cartItemService.updateItemCount(id, action)
+                .then(Mono.just(Rendering.redirectTo("/items/" + id).build()));
     }
 
     @PostMapping("/items")
-    public String updateItemCountFromCart(@RequestParam Long id,
-                                          @RequestParam(value = "search", required = false) String search,
-                                          @RequestParam(value = "sort", defaultValue = "NO") SortType sort,
-                                          @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
-                                          @RequestParam(value = "pageSize", defaultValue = "5") int pageSize,
-                                          @RequestParam("action") CartAction action) {
-        cartItemService.updateItemCount(id, action);
-        return String.format("redirect:/items?search=%s&sort=%s&pageNumber=%s&pageSize=%s",
-                search != null ? search : "", sort, pageNumber, pageSize);
+    public Mono<Rendering> updateItemCountFromCart(@RequestParam Long id,
+                                                   @RequestParam(value = "search", required = false) String search,
+                                                   @RequestParam(value = "sort", defaultValue = "NO") SortType sort,
+                                                   @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
+                                                   @RequestParam(value = "pageSize", defaultValue = "5") int pageSize,
+                                                   @RequestParam("action") CartAction action) {
+        return cartItemService.updateItemCount(id, action)
+                .then(Mono.just(Rendering
+                        .redirectTo(
+                                String.format("/items?search=%s&sort=%s&pageNumber=%s&pageSize=%s",
+                                        search != null ? search : "", sort, pageNumber, pageSize))
+                        .build()));
     }
 }
